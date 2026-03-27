@@ -1,0 +1,36 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parameters
+dt = 0.01          # time step
+T = 5              # total time
+n = int(T / dt)
+
+beta = 1.0         # drag coefficient
+F_flow = 2.0       # airflow force (constant)
+F_elec = -3.0      # electrostatic force (pulls particle inward)
+
+# Initial conditions
+x = np.zeros(n)
+v = np.zeros(n)
+
+x[0] = 5.0         # start outside tower (position)
+v[0] = 0.0         # initial velocity
+
+# Time stepping loop
+for k in range(n - 1):
+    x[k+1] = x[k] + v[k] * dt
+    
+    force = -beta * v[k] + F_flow + F_elec
+    v[k+1] = v[k] + force * dt
+
+# Plot results
+t = np.linspace(0, T, n)
+
+plt.figure()
+plt.plot(t, x, label="Position x(t)")
+plt.plot(t, v, label="Velocity v(t)")
+plt.xlabel("Time")
+plt.legend()
+plt.title("Pollutant Particle Motion in Smog Tower")
+plt.show()
