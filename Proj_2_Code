@@ -1,3 +1,12 @@
+#Our code should output:
+#Time it takes to filter one volume of tower air,
+#Removal efficiency for each pollutant type,
+#Compare removal rate from pollution rate per hour in hong kong, and estimate how many towers would be needed to filter the same amount of air
+
+#Inputs:
+# particle diameters
+# particle molar masses
+
 # -*- coding: utf-8 -*-
 """
 Created on Fri Mar 27 01:02:52 2026
