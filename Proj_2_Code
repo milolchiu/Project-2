@@ -1,0 +1,178 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar 27 01:02:52 2026
+
+@author: Emily
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# Physical constants
+# -----------------------------
+g = 9.81
+epsilon_0 = 8.854e-12
+mu_air = 1.81e-5
+rho_air = 1.225
+
+# -----------------------------
+# Tower / field parameters
+# -----------------------------
+sigma = -1e-5          # negative plate charge
+H = 5.0                # cloud height (m)
+dt = 0.0005
+t_max = 3.0
+q = 1.602e-19 * 100    # particle charge
+u_wind = 1.0           # horizontal wind speed (m/s), +x direction
+
+# -----------------------------
+# Pollutant data
+# -----------------------------
+pollutants = {
+    "SO2":   {"diam": 0.36e-9, "ug": 4.5,   "rho": 1.5},
+    "NO":    {"diam": 0.32e-9, "ug": 65,    "rho": 1.5},
+    "NO2":   {"diam": 0.33e-9, "ug": 63.2,  "rho": 1.5},
+    "CO":    {"diam": 0.38e-9, "ug": 557.5, "rho": 1.5},
+    "O3":    {"diam": 0.30e-9, "ug": 7.1,   "rho": 1.5},
+    "RSP10": {"diam": 10e-6,   "ug": 17.1,  "rho": 2000},
+    "PM2.5": {"diam": 2.5e-6,  "ug": 23.7,  "rho": 2000}
+}
+
+# -----------------------------
+# Single-particle simulation with wind
+# -----------------------------
+def simulate_particle(diam, ug_m3, rho_p, y0, x0=2.0):
+    R = diam / 2
+    V = (4/3) * np.pi * R**3
+    m = rho_p * V
+
+    mass_conc = ug_m3 * 1e-9      # ug/m3 -> kg/m3
+    number_conc = mass_conc / m   # particles/m3
+
+    x, y = x0, y0
+    vx, vy = 0.0, -0.05
+    t = 0.0
+
+    xs, ys = [], []
+
+    while t < t_max and x > 0 and y > 0:
+        # relative velocity (apparent velocity)
+        vrel_x = vx - u_wind
+        vrel_y = vy
+
+        # Stokes drag
+        Fdx = -6 * np.pi * mu_air * R * vrel_x
+        Fdy = -6 * np.pi * mu_air * R * vrel_y
+
+        # gravity + buoyancy
+        Fg = -m * g
+        Fb = rho_air * V * g
+
+        # electric fields
+        E_plate = sigma / (2 * epsilon_0)
+        F_plate = q * E_plate
+
+        E_cloud = (q * number_conc / (2 * epsilon_0)) * (2*x - H)
+        F_cloud = q * E_cloud
+
+        ax = (Fdx + F_plate + F_cloud) / m
+        ay = (Fg + Fb + Fdy) / m
+
+        vx += ax * dt
+        vy += ay * dt
+        x += vx * dt
+        y += vy * dt
+        t += dt
+
+        xs.append(x)
+        ys.append(y)
+
+    hit_plate = x <= 0 and y > 0
+    return xs, ys, hit_plate, t
+
+# -----------------------------
+# Monte Carlo removal efficiency
+# -----------------------------
+np.random.seed(0)
+n_particles = 200
+efficiencies = {}
+sample_trajectories = {}
+
+print("\nStarting pollutant simulations...\n")
+
+for name, data in pollutants.items():
+    print(f"--- Simulating pollutant: {name} ---")
+    print(f"Diameter: {data['diam']:.2e} m, Concentration: {data['ug']} ug/m^3")
+
+    hits = 0
+    trajs = []
+
+    for i in range(n_particles):
+        # random initial height between 0 and H
+        y0 = np.random.uniform(0.5, H)
+        xs, ys, hit, t_hit = simulate_particle(
+            data["diam"], data["ug"], data["rho"], y0
+        )
+
+        if i % 50 == 0:
+            print(f"  Particle {i} simulated...")
+
+        if i < 5:  # store a few sample trajectories for plotting
+            trajs.append((xs, ys))
+        if hit:
+            hits += 1
+
+    efficiencies[name] = hits / n_particles
+    sample_trajectories[name] = trajs
+
+    print(f"  Removal efficiency: {hits}/{n_particles} = {hits/n_particles:.2%}\n")
+
+# -----------------------------
+# Poster Figure 1: Trajectories (example: PM2.5)
+# -----------------------------
+plt.figure(figsize=(8,5))
+for xs, ys in sample_trajectories["PM2.5"]:
+    plt.plot(xs, ys, alpha=0.7)
+plt.axvline(0, color='red', linestyle='--', label='Collector Plate')
+plt.xlabel("Horizontal Distance (m)")
+plt.ylabel("Height (m)")
+plt.title("Sample Trajectories of PM2.5 Particles (with Wind)")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.savefig("fig_PM25_trajectories.png", dpi=300)
+print("Saved: fig_PM25_trajectories.png")
+
+# -----------------------------
+# Poster Figure 2: Removal efficiency bar chart
+# -----------------------------
+names = list(efficiencies.keys())
+vals = [efficiencies[n] * 100 for n in names]
+
+plt.figure(figsize=(8,5))
+plt.bar(names, vals)
+plt.ylabel("Removal Efficiency (%)")
+plt.title("Removal Efficiency by Pollutant Type")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig("fig_removal_efficiency.png", dpi=300)
+print("Saved: fig_removal_efficiency.png")
+
+# -----------------------------
+# Rough estimate: number of towers for Hong Kong
+# -----------------------------
+A_HK = 1100e6          # m^2
+h_mix = 500            # m
+V_HK = A_HK * h_mix    # m^3
+
+Q_tower = 30           # m^3/s
+V_tower_day = Q_tower * 86400  # m^3/day
+
+N_towers = V_HK / V_tower_day
+
+print(f"\nEstimated towers needed for 1 air turnover/day: {N_towers:,.0f}")
+
+print("\nSimulation complete. Check the Plots pane or your working directory for saved figures.\n")
+
+
