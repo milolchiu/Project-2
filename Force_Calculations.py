@@ -1,4 +1,5 @@
 import math
+import matplotlib.pyplot as plt
 
 # Constants
 g = 9.81
@@ -9,7 +10,7 @@ sigma = -1e-6
 epsilon_0 = 8.854e-12
 e = 1.602e-19
 H = 7
-dt = 0.001      
+dt = 0.0005     
 airVelocity = 1.0
 W = 3.5
 air_cycle_time = H / airVelocity
@@ -83,6 +84,8 @@ pollutants = [
 ]
 
 cycles_per_day = 24 * 3600 / air_cycle_time
+names = []
+particles_per_day = []
 
 print("=" * 90)
 print(f"  Cycle time: {air_cycle_time:.2f} s  |  Cycles per day: {cycles_per_day:.1f}  |  Tower volume: {tower_volume:.1f} m^3")
@@ -90,16 +93,30 @@ print("=" * 90)
 print(f"  {'Pollutant':<25} {'Removed/cycle':>15} {'Particles/cycle':>18} {'Particles/day':>18}")
 print("-" * 90)
 for p in pollutants:
-    if p["name"] == "ozone_particles":
-        removal_pct = 0.0
-        per_day = 0.0
-        per_cycle = per_day / cycles_per_day
-    else:
-        diam_m = p["diam (nm)"] * 1e-9
-        particleCharge = p["charge_e"] * e
-        removal_pct, _ = get_removal_percentage(diam_m, p["ug"], p["density"], particleCharge)
-        per_cycle = number_removed_per_cycle(diam_m, p["ug"], p["density"], particleCharge)
-        per_day = number_removed_per_day(diam_m, p["ug"], p["density"], particleCharge)
-        print(f"  {p['name']:<25} {removal_pct:>14.1f}% {per_cycle:>18.3e} {per_day:>18.3e}")
+    diam_m = p["diam (nm)"] * 1e-9
+    particleCharge = p["charge_e"] * e
+    removal_pct, _ = get_removal_percentage(diam_m, p["ug"], p["density"], particleCharge)
+    per_cycle = number_removed_per_cycle(diam_m, p["ug"], p["density"], particleCharge)
+    per_day = number_removed_per_day(diam_m, p["ug"], p["density"], particleCharge)
+    names.append(p["name"])
+    particles_per_day.append(per_day)
+    print(f"  {p['name']:<25} {removal_pct:>14.1f}% {per_cycle:>18.3e} {per_day:>18.3e}")
 print("=" * 90)
 
+total_produced_suspended = 8.027e15
+total_produced_fine = 3.5008e17
+
+towers_needed_suspended = total_produced_suspended / particles_per_day[-2]
+towers_needed_fine = total_produced_fine / particles_per_day[-1]
+
+print(f"  To capture all daily produced suspended particles, we need {towers_needed_suspended:.1f} towers.")
+print(f"  To capture all daily produced fine particles, we need {towers_needed_fine:.1f} towers.")
+
+# Plot
+plt.figure(figsize=(10,6))
+plt.bar(names, particles_per_day, color='skyblue')
+plt.xticks(rotation=45, ha='right')
+plt.ylabel("Particles Removed per Day")
+plt.title("ESP Particle Removal per Day by Pollutant")
+plt.tight_layout()
+plt.show()
