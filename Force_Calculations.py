@@ -108,9 +108,11 @@ total_produced_fine = 3.5008e17
 
 towers_needed_suspended = total_produced_suspended / particles_per_day[-2]
 towers_needed_fine = total_produced_fine / particles_per_day[-1]
+minimumCost = 55000 * max(towers_needed_suspended, towers_needed_fine)
 
 print(f"  To capture all daily produced suspended particles, we need {towers_needed_suspended:.1f} towers.")
 print(f"  To capture all daily produced fine particles, we need {towers_needed_fine:.1f} towers.")
+print(f"  Minimum cost to capture all produced particles from {towers_needed_suspended:.1f} towers: ${minimumCost:,.2f}")
 
 # Plot
 plt.figure(figsize=(10,6))
