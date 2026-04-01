@@ -34,7 +34,7 @@ def simulate_particle(diam, particleConcentration, particleDensity, y0, x0, part
         F_plate = particleCharge * E_plate
         E_cloud = (particleCharge * number_conc / (2 * epsilon_0)) * (2 * x - W)
         F_cloud = particleCharge * E_cloud
-        vx = (F_plate - F_cloud) / (6 * math.pi * dynamicViscosity * R)
+        vx = (F_plate - F_cloud) / (6 * math.pi * dynamicViscosity * R) # Stokes' law for horizontal velocity
         ay = (Fg + Fb + Fdy) / m
         vy += ay * dt
         x += vx * dt
@@ -103,16 +103,25 @@ for p in pollutants:
     print(f"  {p['name']:<25} {removal_pct:>14.1f}% {per_cycle:>18.3e} {per_day:>18.3e}")
 print("=" * 90)
 
+# Decision calculations
 total_produced_suspended = 8.027e15
 total_produced_fine = 3.5008e17
 
 towers_needed_suspended = total_produced_suspended / particles_per_day[-2]
 towers_needed_fine = total_produced_fine / particles_per_day[-1]
 minimumCost = 55000 * max(towers_needed_suspended, towers_needed_fine)
+tower_base_area = W * W
+total_hong_kong_area_useable = 1.11e9 * .005 #meters squared
+max_towers_fit = total_hong_kong_area_useable / tower_base_area
 
 print(f"  To capture all daily produced suspended particles, we need {towers_needed_suspended:.1f} towers.")
 print(f"  To capture all daily produced fine particles, we need {towers_needed_fine:.1f} towers.")
 print(f"  Minimum cost to capture all produced particles from {towers_needed_suspended:.1f} towers: ${minimumCost:,.2f}")
+print(f"  Maximum towers that can fit in Hong Kong from the available area: {max_towers_fit:.1f}")
+if towers_needed_suspended > max_towers_fit:
+    print(f"  Conclusion: It is not feasible to capture all produced suspended particles with the \navailable area. ({towers_needed_suspended:.1f} towers needed >= {max_towers_fit:.1f} towers available)")
+else:
+    print(f"  Conclusion: It is feasible to capture all produced suspended particles with the available area. ({towers_needed_suspended:.1f} towers needed < {max_towers_fit:.1f} towers available)")
 
 # Plot
 plt.figure(figsize=(10,6))
